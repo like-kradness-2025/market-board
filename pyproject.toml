@@ -1,0 +1,11 @@
+[project]
+name = "market-board"
+version = "0.1.0"
+description = "Render a BTC perpetual market board from Coinalyze receiver data"
+requires-python = ">=3.11"
+dependencies = [
+    "pillow>=11.0,<12",
+]
+
+[tool.uv]
+package = false
