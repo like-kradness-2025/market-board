@@ -108,6 +108,20 @@ def _fmt_compact_usd(value: float | None) -> str:
     return f"${value:,.0f}"
 
 
+def _fmt_signed_compact_usd(value: float | None) -> str:
+    if value is None:
+        return "-"
+    sign = "+" if value > 0 else "-" if value < 0 else ""
+    abs_value = abs(value)
+    if abs_value >= 1e9:
+        return f"{sign}${abs_value / 1e9:.1f}B"
+    if abs_value >= 1e6:
+        return f"{sign}${abs_value / 1e6:.1f}M"
+    if abs_value >= 1e3:
+        return f"{sign}${abs_value / 1e3:.1f}K"
+    return f"{sign}${abs_value:,.0f}"
+
+
 def _blend(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int, int]:
     t = max(0.0, min(1.0, t))
     return (
@@ -156,7 +170,10 @@ def _heatmap_scales(markets: list[dict]) -> dict[str, list[float]]:
     return {
         "basis": _rank_intensities(markets, "basis"),
         "basisChange5mBp": _rank_intensities(markets, "basisChange5mBp"),
-        "cvdRatio": _rank_intensities(markets, "cvdRatio"),
+        "cvd24hChange5mUsd": _rank_intensities(
+            markets,
+            "cvd24hChange5mUsd",
+        ),
         "fundingChange": _rank_intensities(markets, "fundingChange"),
         "openInterestChange5m": _rank_intensities(markets, "openInterestChange5m"),
         "activeOpenInterest3DaysChange5m": _rank_intensities(
@@ -259,7 +276,7 @@ def _draw_table_header(draw: ImageDraw.ImageDraw, fonts: dict[str, ImageFont.Ima
         ("PRICE", "5M Δ"),
         ("BASIS", "CURRENT %"),
         ("BASIS CHG", "5M Δ BP"),
-        ("CVD RATIO", None),
+        ("CVD24H", "5M Δ"),
         ("FR", None),
         ("OI", None),
         ("OI3DAYS", "ACTIVE OI"),
@@ -309,6 +326,12 @@ def _value_with_change(value: str, change: float | None, digits: int = 1) -> str
     return f"{value} ({_fmt_pct(change, digits)})"
 
 
+def _value_with_amount_change(value: str, change: float | None) -> str:
+    if change is None:
+        return value
+    return f"{value} ({_fmt_signed_compact_usd(change)})"
+
+
 def _draw_rows(
     draw: ImageDraw.ImageDraw,
     fonts: dict[str, ImageFont.ImageFont],
@@ -325,7 +348,7 @@ def _draw_rows(
     heat_columns = (
         (2, "basis", True),
         (3, "basisChange5mBp", True),
-        (4, "cvdRatio", True),
+        (4, "cvd24hChange5mUsd", True),
         (5, "fundingChange", True),
         (6, "openInterestChange5m", True),
         (7, "activeOpenInterest3DaysChange5m", True),
@@ -381,7 +404,11 @@ def _draw_rows(
             anchor="ra",
         )
 
-        _draw_text(draw, (col_x[4] + col_w[4] - 12, y + 13), _fmt_pct(market["cvdRatio"], 1), fonts["mono_14"], COLORS["text"], anchor="ra")
+        cvd_text = _value_with_amount_change(
+            _fmt_signed_compact_usd(market["cvd24hUsd"]),
+            market.get("cvd24hChange5mUsd"),
+        )
+        _draw_text(draw, (col_x[4] + col_w[4] - 12, y + 13), cvd_text, fonts["mono_13"], COLORS["text"], anchor="ra")
         fr_text = _value_with_change(_fmt_pct(market["funding"], 4), market.get("fundingChange"), 1)
         _draw_text(draw, (col_x[5] + col_w[5] - 12, y + 13), fr_text, fonts["mono_13"], COLORS["text"], anchor="ra")
 
@@ -433,7 +460,7 @@ def render_market_board(snapshot: dict, output_path: Path) -> Path:
     summary_top = _draw_summary_strip(draw, fonts, snapshot, content_top, BOARD_WIDTH - 2)
 
     # Fill the board width while reserving space for value-plus-change cells.
-    col_w = [270, 210, 125, 135, 135, 190, 185, 190, 196]
+    col_w = [260, 200, 125, 135, 195, 180, 175, 180, 186]
     col_x = [BOARD_LEFT]
     for width in col_w[:-1]:
         col_x.append(col_x[-1] + width + 1)

@@ -93,18 +93,24 @@ def window_volume(connection, symbol, start, end):
     )
 
 
-def window_totals(connection, symbol, start, end):
-    row = connection.execute(
-        """
-        SELECT
-            COALESCE(SUM(volume), 0),
-            COALESCE(SUM(2 * buyvolume - volume), 0)
+def window_cvd_usd(connection, symbol, start, end, unit):
+    value_expression = (
+        "(2 * COALESCE(buyvolume, 0) - COALESCE(volume, 0))"
+        if unit == "usd"
+        else "(2 * COALESCE(buyvolume, 0) - COALESCE(volume, 0)) * close"
+    )
+    return read_one(
+        connection,
+        f"""
+        SELECT COALESCE(
+            SUM({value_expression}),
+            0
+        )
         FROM ohlcv_bars
         WHERE symbol = ? AND timestamp BETWEEN ? AND ?
         """,
         (symbol, start, end),
-    ).fetchone()
-    return row[0], row[1]
+    )
 
 
 def liquidation_totals(connection, symbol, start, end):
@@ -191,8 +197,26 @@ def build_snapshot(db_path: Path | None = None):
                     connection, "open_interest", symbol, board_timestamp - 300
                 )
 
-                current_volume, current_cvd = window_totals(
-                    connection, symbol, board_timestamp - 299, board_timestamp
+                cvd_5m_usd = window_cvd_usd(
+                    connection,
+                    symbol,
+                    board_timestamp - 299,
+                    board_timestamp,
+                    unit,
+                )
+                cvd_24h_usd = window_cvd_usd(
+                    connection,
+                    symbol,
+                    board_timestamp - 86399,
+                    board_timestamp,
+                    unit,
+                )
+                previous_cvd_24h_usd = window_cvd_usd(
+                    connection,
+                    symbol,
+                    board_timestamp - 86399 - 300,
+                    board_timestamp - 300,
+                    unit,
                 )
                 volume_24h = window_volume(
                     connection, symbol, board_timestamp - 86399, board_timestamp
@@ -211,12 +235,6 @@ def build_snapshot(db_path: Path | None = None):
                 previous_oi = (
                     normalize_usd(previous_oi_row["close"], previous_price, unit)
                     if previous_oi_row and previous_price is not None
-                    else None
-                )
-                cvd_5m_usd = normalize_usd(current_cvd, price, unit)
-                cvd_ratio = (
-                    current_cvd / current_volume * 100
-                    if current_volume not in (None, 0)
                     else None
                 )
                 active_oi = active_oi_3days(
@@ -261,7 +279,13 @@ def build_snapshot(db_path: Path | None = None):
                             if previous_basis is not None
                             else None
                         ),
-                        "cvdRatio": cvd_ratio,
+                        "cvd24hUsd": cvd_24h_usd,
+                        "cvd24hChange5mUsd": (
+                            cvd_24h_usd - previous_cvd_24h_usd
+                            if cvd_24h_usd is not None
+                            and previous_cvd_24h_usd is not None
+                            else None
+                        ),
                         "funding": funding_row["close"] if funding_row else None,
                         "fundingChange": change_percent(
                             funding_row["close"] if funding_row else None,

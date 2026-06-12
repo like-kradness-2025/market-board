@@ -44,7 +44,7 @@
 - `Price`
 - `Basis`
 - `Basischg`
-- `CVD Ratio`
+- `CVD24H`
 - `FR`
 - `OI`
 - `OI3Days`
@@ -56,7 +56,7 @@
 - `Index`: 13市場の最新価格中央値。表のヘッダー右上に表示する
 - `Basis`: 現在価格のIndexに対する乖離率。`(現在Price / 現在Index - 1) × 100`
 - `Basischg`: 5分間でBasisがどれだけ拡大・縮小したか。`現在Basis - 5分前Basis` をbpで表示する
-- `CVD Ratio`: 直近5分の `(Buy Volume - Sell Volume) / Total Volume × 100`
+- `CVD24H`: 直近24時間Rollingの成行買い出来高と成行売り出来高の差額。5分前のRolling値との差額を併記する
 - `FR`: 最新 funding rate。表示時は `値（5分変化率）` の形式にする
 - `OI`: 最新 OI のUSD換算値
 - `OI3Days`: 直近3日間の Active OI
@@ -64,17 +64,18 @@
 
 数量単位がBTCの市場は最新価格を掛けてUSD換算する。USD建てインバース市場は取得値をUSDとして扱う。
 
-### CVD Ratio
+### CVD24H
 
 ```text
 Sell Volume = Total Volume - Buy Volume
-CVD Ratio = (Buy Volume - Sell Volume) / Total Volume × 100
-          = (2 × Buy Volume - Total Volume) / Total Volume × 100
+CVD24H = Σ((Buy Volume - Sell Volume) × Price)
+CVD24H 5M Delta = CVD24H(now) - CVD24H(5min ago)
 ```
 
-- `+100%` に近いほど成行買い優勢
-- `-100%` に近いほど成行売り優勢
-- 累積CVD水準の変化率ではなく、直近5分の成行フロー偏りを表す
+- 正値は直近24時間で成行買い優勢、負値は成行売り優勢
+- 括弧内は前回配信からの変化率ではなく、5分間の実額差を表示する
+- 背景色は5分実額差の正負と列内強度を反映する
+- BTC数量市場は各足の価格でUSD換算し、USD数量市場は取得値をそのまま使う
 
 ### Active OI
 `OI3Days` は、現在の総OIのうち直近3日間に新規で積み上がり、現在も残っていると推定されるOIとして算出する。
@@ -91,7 +92,8 @@ Active OI 3Days = Current OI - Minimum OI in last 3 days
 
 ## 7. 表示ルール
 - ダークテーマを基本とする
-- `Basis`、`Basischg`、`CVD Ratio` は表示値ベースでセル全体をヒートマップ表示する
+- `Basis`、`Basischg` は表示値ベースでセル全体をヒートマップ表示する
+- `CVD24H` は5分前のRolling値からの実額差でセル全体をヒートマップ表示する
 - `Basis` は現在の乖離方向、`Basischg` は5分間の乖離変化方向に応じて正値を緑、負値を赤で表示する
 - `FR` 以降の表示値は `値（5分変化率）` の形式にする
 - `FR` 以降の列は、表示値そのものではなく前回比の変化率を使ってセル全体をヒートマップ表示する
