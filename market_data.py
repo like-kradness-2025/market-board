@@ -8,9 +8,9 @@ from statistics import median
 
 COINALYZE_DATA_DIR = Path.home() / "coinalyze-receiver" / "data"
 DEFAULT_DB_CANDIDATES = (
+    COINALYZE_DATA_DIR / "coinalyze_v2.db",
     COINALYZE_DATA_DIR / "coinalyze_1min.db",
     COINALYZE_DATA_DIR / "coinalyze.db",
-    COINALYZE_DATA_DIR / "coinalyze_v2.db",
 )
 
 MARKETS = [

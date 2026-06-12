@@ -33,7 +33,7 @@ def load_webhook_url() -> str | None:
 
 
 def upload_to_discord(webhook_url: str, screenshot_path: Path, content: str) -> None:
-    payload = json.dumps({"content": content}, ensure_ascii=False)
+    payload = json.dumps({"content": content, "flags": 4096}, ensure_ascii=False)
     subprocess.run(
         [
             "curl",
