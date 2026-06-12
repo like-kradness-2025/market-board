@@ -12,18 +12,17 @@ BOARD_WIDTH = CANVAS_SIZE[0] - BOARD_MARGIN * 2
 BOARD_LEFT = BOARD_MARGIN
 BOARD_TOP = BOARD_MARGIN
 
-FONT_MONO = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
-FONT_SANS = Path("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf")
-FONT_SANS_BOLD = Path("/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf")
-FONT_NARROW_BOLD = Path("/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf")
-FONT_CJK_BOLD = Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc")
+FONT_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
+FONT_MONO = FONT_DIR / "DejaVuSansMono.ttf"
+FONT_SANS = FONT_DIR / "NotoSans-Regular.ttf"
+FONT_SANS_BOLD = FONT_DIR / "NotoSans-Bold.ttf"
+FONT_NARROW_BOLD = FONT_DIR / "LiberationSansNarrow-Bold.ttf"
 
 
 def _font(path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    try:
-        return ImageFont.truetype(str(path), size=size)
-    except OSError:
-        return ImageFont.load_default()
+    if not path.exists():
+        raise FileNotFoundError(f"Font not found: {path}")
+    return ImageFont.truetype(str(path), size=size)
 
 
 def _fonts() -> dict[str, ImageFont.FreeTypeFont | ImageFont.ImageFont]:
@@ -43,9 +42,6 @@ def _fonts() -> dict[str, ImageFont.FreeTypeFont | ImageFont.ImageFont]:
         "narrow_18_bold": _font(FONT_NARROW_BOLD, 18),
         "narrow_24_bold": _font(FONT_NARROW_BOLD, 24),
         "narrow_36_bold": _font(FONT_NARROW_BOLD, 36),
-        "cjk_12_bold": _font(FONT_CJK_BOLD, 12),
-        "cjk_14_bold": _font(FONT_CJK_BOLD, 14),
-        "cjk_16_bold": _font(FONT_CJK_BOLD, 16),
     }
 
 

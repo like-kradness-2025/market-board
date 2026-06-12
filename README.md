@@ -31,6 +31,7 @@ Perp 13銘柄で固定する。
 - Python 3.11+
 - `curl`
 - Termux の `python-pillow`
+- 画像用フォントは `assets/fonts/` に同梱済み
 
 ## セットアップ
 
