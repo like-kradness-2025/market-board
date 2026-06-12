@@ -63,31 +63,22 @@ def normalize_usd(value, price, unit):
 def active_oi_3days(connection, symbol, end, unit, fallback_price):
     start = end - 259200
     baseline = latest_row(connection, "open_interest", symbol, start)
-    rows = connection.execute(
+    current = latest_row(connection, "open_interest", symbol, end)
+    window_minimum = read_one(
+        connection,
         """
-        SELECT oi.timestamp, oi.close, bars.close AS price
-        FROM open_interest AS oi
-        LEFT JOIN ohlcv_bars AS bars
-          ON bars.symbol = oi.symbol AND bars.timestamp = oi.timestamp
-        WHERE oi.symbol = ? AND oi.timestamp > ? AND oi.timestamp <= ?
-        ORDER BY oi.timestamp
+        SELECT MIN(close)
+        FROM open_interest
+        WHERE symbol = ? AND timestamp > ? AND timestamp <= ?
         """,
         (symbol, start, end),
-    ).fetchall()
-    if baseline is None or not rows:
+    )
+    if baseline is None or current is None or window_minimum is None:
         return None
 
-    previous = baseline["close"]
-    active_oi = 0.0
-    for row in rows:
-        movement = abs(row["close"] - previous)
-        active_oi += normalize_usd(
-            movement,
-            row["price"] if row["price"] is not None else fallback_price,
-            unit,
-        )
-        previous = row["close"]
-    return active_oi
+    minimum_oi = min(baseline["close"], window_minimum)
+    active_oi = max(0.0, current["close"] - minimum_oi)
+    return normalize_usd(active_oi, fallback_price, unit)
 
 
 def window_volume(connection, symbol, start, end):
