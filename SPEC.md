@@ -46,7 +46,6 @@
 - `Basischg`
 - `CVD Ratio`
 - `FR`
-- `FRchg`
 - `OI`
 - `OI3Days`
 - `VOL24H`
@@ -55,11 +54,10 @@
 - `Symbol`: `取引所-Symbol` 形式
 - `Price`: 最新の約定終値または直近 close。5分前比を併記する
 - `Index`: 13市場の最新価格中央値。表のヘッダー右上に表示する
-- `Basis`: `Price / Index - 1` の乖離率
-- `Basischg`: 現在の Basis と5分前の Basis の差（bp）
+- `Basis`: 現在価格のIndexに対する乖離率。`(現在Price / 現在Index - 1) × 100`
+- `Basischg`: 5分間でBasisがどれだけ拡大・縮小したか。`現在Basis - 5分前Basis` をbpで表示する
 - `CVD Ratio`: 直近5分の `(Buy Volume - Sell Volume) / Total Volume × 100`
-- `FR`: 最新 funding rate
-- `FRchg`: 現在の funding rate と5分前の funding rate の変化率
+- `FR`: 最新 funding rate。表示時は `値（5分変化率）` の形式にする
 - `OI`: 最新 OI のUSD換算値
 - `OI3Days`: 直近3日間の Active OI
 - `VOL24H`: 直近24時間の出来高のUSD換算値
@@ -92,9 +90,13 @@ Active OI 3Days = Σ |OI(t) - OI(t-1)|
 
 ## 7. 表示ルール
 - ダークテーマを基本とする
-- `Basis` 以降は列ごとの順位でセル全体をヒートマップ表示する
-- `Basis`、`Basischg`、`CVD Ratio`、`FR`、`FRchg` は正値を緑、負値を赤で表示する
-- `OI`、`OI3Days`、`VOL24H` は値が大きいほど濃い緑で表示する
+- `Basis`、`Basischg`、`CVD Ratio` は表示値ベースでセル全体をヒートマップ表示する
+- `Basis` は現在の乖離方向、`Basischg` は5分間の乖離変化方向に応じて正値を緑、負値を赤で表示する
+- `FR` 以降の表示値は `値（5分変化率）` の形式にする
+- `FR` 以降の列は、表示値そのものではなく前回比の変化率を使ってセル全体をヒートマップ表示する
+- `FR` は正値を緑、負値を赤で表示する
+- `OI`、`OI3Days`、`VOL24H` は前回比が大きいほど濃い緑、減少が大きいほど濃い赤で表示する
+- 変化率表記は小数1桁で統一する
 - 色の強度は列内の絶対値順位で決め、下位約35%は無色とする
 - 中程度の値は薄く、上位の強い値だけが濃くなる非線形カーブを使う
 - 重要度の低い列は薄く、重要な列は見やすくする
@@ -105,8 +107,9 @@ Active OI 3Days = Σ |OI(t) - OI(t-1)|
 - 最新の 1 分足を基本単位にし、表示は1分ごとに更新する
 - 画像生成は Python で直接描画し、HTML / Chrome 依存は持たない
 - `Price` は5分前比を併記する
-- `Basischg` は5分間のBasis差をbpで表示する
-- `FRchg` は5分前比の変化率を表示する
+- `Basischg` は相対変化率ではなく、5分間のBasis差をbpで表示する
+- `FR` 以降のセルは `値（変化率）` の表記にする
+- `FR` 以降のセル背景は前回比の変化率を色に反映する
 - `OI3Days` は直近72時間のOI変化を集計する
 - `VOL24H` は直近24時間の出来高を集計する
 - OI と funding は最新値を優先する

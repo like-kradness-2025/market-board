@@ -6,7 +6,7 @@ from typing import Iterable
 
 from PIL import Image, ImageDraw, ImageFont
 
-CANVAS_SIZE = (1440, 820)
+CANVAS_SIZE = (1680, 820)
 BOARD_MARGIN = 18
 BOARD_WIDTH = CANVAS_SIZE[0] - BOARD_MARGIN * 2
 BOARD_LEFT = BOARD_MARGIN
@@ -28,11 +28,11 @@ def _font(path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont
 
 def _fonts() -> dict[str, ImageFont.FreeTypeFont | ImageFont.ImageFont]:
     return {
-        "mono_10": _font(FONT_MONO, 10),
         "mono_11": _font(FONT_MONO, 11),
         "mono_12": _font(FONT_MONO, 12),
         "mono_13": _font(FONT_MONO, 13),
         "mono_14": _font(FONT_MONO, 14),
+        "mono_15": _font(FONT_MONO, 15),
         "sans_12": _font(FONT_SANS, 12),
         "sans_13": _font(FONT_SANS, 13),
         "sans_14": _font(FONT_SANS, 14),
@@ -159,16 +159,15 @@ def _rank_intensities(
 def _heatmap_scales(markets: list[dict]) -> dict[str, list[float]]:
     return {
         "basis": _rank_intensities(markets, "basis"),
-        "basisChangeBp": _rank_intensities(markets, "basisChangeBp"),
+        "basisChange5mBp": _rank_intensities(markets, "basisChange5mBp"),
         "cvdRatio": _rank_intensities(markets, "cvdRatio"),
-        "funding": _rank_intensities(markets, "funding"),
         "fundingChange": _rank_intensities(markets, "fundingChange"),
-        "openInterestUsd": _rank_intensities(markets, "openInterestUsd"),
-        "activeOpenInterest3DaysUsd": _rank_intensities(
+        "openInterestChange5m": _rank_intensities(markets, "openInterestChange5m"),
+        "activeOpenInterest3DaysChange5m": _rank_intensities(
             markets,
-            "activeOpenInterest3DaysUsd",
+            "activeOpenInterest3DaysChange5m",
         ),
-        "volume24hUsd": _rank_intensities(markets, "volume24hUsd"),
+        "volume24hChange5m": _rank_intensities(markets, "volume24hChange5m"),
     }
 
 
@@ -203,19 +202,19 @@ def _draw_header(draw: ImageDraw.ImageDraw, fonts: dict[str, ImageFont.ImageFont
     left = BOARD_LEFT + 20
     top = BOARD_TOP + 22
 
-    _draw_text(draw, (left, top), "5 MINUTE MARKET PULSE", fonts["mono_11"], COLORS["cyan"])
+    _draw_text(draw, (left, top), "5 MINUTE MARKET PULSE", fonts["mono_12"], COLORS["cyan"])
     _draw_text(draw, (left, top + 20), "BTC PERPETUALS", fonts["narrow_36_bold"], COLORS["text"])
 
     meta_top = top + 22
     ref_x = board_right - 320
     upd_x = board_right - 225
 
-    _draw_text(draw, (ref_x, meta_top), "REFERENCE", fonts["mono_10"], COLORS["muted"])
-    _draw_text(draw, (ref_x, meta_top + 18), f"${_fmt_price(snapshot['indexPrice'])}", fonts["mono_13"], COLORS["text"])
+    _draw_text(draw, (ref_x, meta_top), "REFERENCE", fonts["mono_11"], COLORS["muted"])
+    _draw_text(draw, (ref_x, meta_top + 18), f"${_fmt_price(snapshot['indexPrice'])}", fonts["mono_14"], COLORS["text"])
 
     updated = datetime.fromtimestamp(snapshot["timestamp"], tz=timezone.utc).astimezone().strftime("%H:%M:%S JST")
-    _draw_text(draw, (upd_x, meta_top), "UPDATED", fonts["mono_10"], COLORS["muted"])
-    _draw_text(draw, (upd_x, meta_top + 18), updated, fonts["mono_13"], COLORS["text"])
+    _draw_text(draw, (upd_x, meta_top), "UPDATED", fonts["mono_11"], COLORS["muted"])
+    _draw_text(draw, (upd_x, meta_top + 18), updated, fonts["mono_14"], COLORS["text"])
 
     badge_w, badge_h = 90, 26
     badge_x = board_right - badge_w - 20
@@ -228,45 +227,44 @@ def _draw_header(draw: ImageDraw.ImageDraw, fonts: dict[str, ImageFont.ImageFont
         fill=COLORS["bg_soft"],
     )
     draw.ellipse((badge_x + 9, badge_y + 9, badge_x + 15, badge_y + 15), fill=COLORS["green"])
-    _draw_centered_text(draw, (badge_x, badge_y, badge_x + badge_w, badge_y + badge_h), "LIVE DB", fonts["mono_11"], COLORS["green"])
+    _draw_centered_text(draw, (badge_x, badge_y, badge_x + badge_w, badge_y + badge_h), "LIVE DB", fonts["mono_12"], COLORS["green"])
 
     return top + 84
 
 
 def _draw_summary_strip(draw: ImageDraw.ImageDraw, fonts: dict[str, ImageFont.ImageFont], snapshot: dict, top: int, width: int) -> int:
     items = [
-        ("MEDIAN OI 5M", _fmt_pct(snapshot["summary"]["openInterestChangeMedian"], 2), snapshot["summary"]["openInterestChangeMedian"]),
+        ("MEDIAN OI 5M", _fmt_pct(snapshot["summary"]["openInterestChangeMedian"], 1), snapshot["summary"]["openInterestChangeMedian"]),
         ("NET CVD 5M", _fmt_compact_usd(snapshot["summary"]["netCvd5mUsd"]), snapshot["summary"]["netCvd5mUsd"]),
         ("LIQUIDATIONS 5M", _fmt_compact_usd(snapshot["summary"]["liquidations5mUsd"]), snapshot["summary"]["liquidations5mUsd"]),
         ("DOMINANT FLOW", "BUY" if snapshot["summary"]["netCvd5mUsd"] >= 0 else "SELL", snapshot["summary"]["netCvd5mUsd"]),
     ]
-    strip_h = 40
+    strip_h = 42
     col_w = width // len(items)
     for index, (label, value, tone) in enumerate(items):
         x = BOARD_LEFT + index * col_w
         if index:
             draw.line((x, top, x, top + strip_h), fill=COLORS["line"], width=1)
-        _draw_text(draw, (x + 16, top + 10), label, fonts["mono_10"], COLORS["muted"])
+        _draw_text(draw, (x + 16, top + 11), label, fonts["mono_11"], COLORS["muted"])
         fill = COLORS["green"] if (label == "DOMINANT FLOW" and value == "BUY") or (label != "DOMINANT FLOW" and tone is not None and tone >= 0) else COLORS["red"]
         if label == "DOMINANT FLOW":
             fill = COLORS["green"] if value == "BUY" else COLORS["red"]
-        _draw_text(draw, (x + col_w - 16, top + 10), value, fonts["mono_13"], fill, anchor="ra")
+        _draw_text(draw, (x + col_w - 16, top + 11), value, fonts["mono_14"], fill, anchor="ra")
     draw.line((BOARD_LEFT, top + strip_h, BOARD_LEFT + width, top + strip_h), fill=COLORS["line"], width=1)
     return top + strip_h
 
 
 def _draw_table_header(draw: ImageDraw.ImageDraw, fonts: dict[str, ImageFont.ImageFont], top: int, col_x: list[int], col_w: list[int]) -> int:
-    header_h = 54
+    header_h = 56
     table_right = BOARD_LEFT + sum(col_w) + len(col_w) - 1
     draw.rectangle((BOARD_LEFT, top, table_right, top + header_h), fill=COLORS["bg_soft"])
     titles = [
         ("SYMBOL", None),
         ("PRICE", "5M Δ"),
-        ("BASIS", None),
-        ("BASISCHG", "5M BP"),
+        ("BASIS", "CURRENT %"),
+        ("BASIS CHG", "5M Δ BP"),
         ("CVD RATIO", None),
         ("FR", None),
-        ("FRCHG", "CHG"),
         ("OI", None),
         ("OI3DAYS", "ACTIVE OI"),
         ("VOL24H", None),
@@ -276,9 +274,9 @@ def _draw_table_header(draw: ImageDraw.ImageDraw, fonts: dict[str, ImageFont.Ima
         w = col_w[i]
         if i:
             draw.line((x, top, x, top + header_h), fill=COLORS["line_soft"], width=1)
-        _draw_text(draw, (x + 12, top + 16), label, fonts["mono_11"], COLORS["muted"])
+        _draw_text(draw, (x + 12, top + 17), label, fonts["mono_12"], COLORS["muted"])
         if sublabel:
-            _draw_text(draw, (x + w - 12, top + 34), sublabel, fonts["mono_10"], COLORS["muted"], anchor="ra")
+            _draw_text(draw, (x + w - 12, top + 36), sublabel, fonts["mono_11"], COLORS["muted"], anchor="ra")
     draw.line((BOARD_LEFT, top + header_h, table_right, top + header_h), fill=COLORS["line"], width=1)
     return top + header_h
 
@@ -309,6 +307,12 @@ def _draw_centered_text(
     draw.text((x, y), text, font=font, fill=fill)
 
 
+def _value_with_change(value: str, change: float | None, digits: int = 1) -> str:
+    if change is None:
+        return value
+    return f"{value} ({_fmt_pct(change, digits)})"
+
+
 def _draw_rows(
     draw: ImageDraw.ImageDraw,
     fonts: dict[str, ImageFont.ImageFont],
@@ -317,20 +321,19 @@ def _draw_rows(
     col_x: list[int],
     col_w: list[int],
 ) -> int:
-    row_h = 41
+    row_h = 44
     table_left = BOARD_LEFT
     table_right = BOARD_LEFT + sum(col_w) + len(col_w) - 1
     market_rows = list(markets)
     heatmap = _heatmap_scales(market_rows)
     heat_columns = (
         (2, "basis", True),
-        (3, "basisChangeBp", True),
+        (3, "basisChange5mBp", True),
         (4, "cvdRatio", True),
-        (5, "funding", True),
-        (6, "fundingChange", True),
-        (7, "openInterestUsd", False),
-        (8, "activeOpenInterest3DaysUsd", False),
-        (9, "volume24hUsd", False),
+        (5, "fundingChange", True),
+        (6, "openInterestChange5m", True),
+        (7, "activeOpenInterest3DaysChange5m", True),
+        (8, "volume24hChange5m", True),
     )
 
     for row_index, market in enumerate(market_rows):
@@ -354,42 +357,58 @@ def _draw_rows(
             draw.line((x, y, x, y + row_h), fill=COLORS["line_soft"], width=1)
         draw.line((table_left, y, table_right, y), fill=COLORS["line_soft"], width=1)
 
-        _draw_text(draw, (col_x[0] + 12, y + 13), f'{market["exchange"]}-{market["symbol"]}', fonts["narrow_16_bold"], COLORS["text"])
+        _draw_text(draw, (col_x[0] + 12, y + 13), f'{market["exchange"]}-{market["symbol"]}', fonts["narrow_18_bold"], COLORS["text"])
 
         price_text = _fmt_price(market["price"])
-        price_delta = _fmt_pct(market["priceChange5m"], 2)
-        delta_w = 56
-        delta_h = 22
-        delta_x = col_x[1] + col_w[1] - delta_w - 8
+        price_delta = _fmt_pct(market["priceChange5m"], 1)
+        delta_w = 64
+        delta_h = 26
+        delta_x = col_x[1] + col_w[1] - delta_w - 10
         delta_y = y + 9
-        _draw_text(draw, (col_x[1] + 10, y + 12), price_text, fonts["mono_13"], COLORS["text"])
-        _draw_pill(draw, (delta_x, delta_y, delta_x + delta_w, delta_y + delta_h), price_delta, fonts["mono_10"], market["priceChange5m"])
+        _draw_text(draw, (col_x[1] + 10, y + 13), price_text, fonts["mono_15"], COLORS["text"])
+        _draw_pill(draw, (delta_x, delta_y, delta_x + delta_w, delta_y + delta_h), price_delta, fonts["mono_11"], market["priceChange5m"])
 
         _draw_text(
             draw,
-            (col_x[2] + col_w[2] - 12, y + 12),
+            (col_x[2] + col_w[2] - 12, y + 13),
             _fmt_pct(market["basis"], 2),
-            fonts["mono_13"],
+            fonts["mono_14"],
             COLORS["text"],
             anchor="ra",
         )
         _draw_text(
             draw,
-            (col_x[3] + col_w[3] - 12, y + 12),
-            _fmt_bp(market["basisChangeBp"], 2),
-            fonts["mono_13"],
+            (col_x[3] + col_w[3] - 12, y + 13),
+            _fmt_bp(market["basisChange5mBp"], 1),
+            fonts["mono_14"],
             COLORS["text"],
             anchor="ra",
         )
 
-        _draw_text(draw, (col_x[4] + col_w[4] - 12, y + 12), _fmt_pct(market["cvdRatio"], 1), fonts["mono_13"], COLORS["text"], anchor="ra")
-        _draw_text(draw, (col_x[5] + col_w[5] - 12, y + 12), _fmt_pct(market["funding"], 4), fonts["mono_13"], COLORS["text"], anchor="ra")
-        funding_text = _fmt_pct(market["fundingChange"], 4)
-        _draw_text(draw, (col_x[6] + col_w[6] - 12, y + 12), funding_text, fonts["mono_13"], COLORS["text"], anchor="ra")
+        _draw_text(draw, (col_x[4] + col_w[4] - 12, y + 13), _fmt_pct(market["cvdRatio"], 1), fonts["mono_14"], COLORS["text"], anchor="ra")
+        fr_text = _value_with_change(_fmt_pct(market["funding"], 4), market.get("fundingChange"), 1)
+        _draw_text(draw, (col_x[5] + col_w[5] - 12, y + 13), fr_text, fonts["mono_13"], COLORS["text"], anchor="ra")
 
-        _draw_text(draw, (col_x[7] + col_w[7] - 12, y + 12), _fmt_compact_usd(market["openInterestUsd"]), fonts["mono_13"], COLORS["text"], anchor="ra")
-        _draw_text(draw, (col_x[8] + col_w[8] - 12, y + 12), _fmt_compact_usd(market["activeOpenInterest3DaysUsd"]), fonts["mono_13"], COLORS["text"], anchor="ra")
-        _draw_text(draw, (col_x[9] + col_w[9] - 12, y + 12), _fmt_compact_usd(market["volume24hUsd"]), fonts["mono_13"], COLORS["text"], anchor="ra")
+        oi_text = _value_with_change(
+            _fmt_compact_usd(market["openInterestUsd"]),
+            market.get("openInterestChange5m"),
+            1,
+        )
+        _draw_text(draw, (col_x[6] + col_w[6] - 12, y + 13), oi_text, fonts["mono_13"], COLORS["text"], anchor="ra")
+
+        aoi_text = _value_with_change(
+            _fmt_compact_usd(market["activeOpenInterest3DaysUsd"]),
+            market.get("activeOpenInterest3DaysChange5m"),
+            1,
+        )
+        _draw_text(draw, (col_x[7] + col_w[7] - 12, y + 13), aoi_text, fonts["mono_13"], COLORS["text"], anchor="ra")
+
+        vol_text = _value_with_change(
+            _fmt_compact_usd(market["volume24hUsd"]),
+            market.get("volume24hChange5m"),
+            1,
+        )
+        _draw_text(draw, (col_x[8] + col_w[8] - 12, y + 13), vol_text, fonts["mono_13"], COLORS["text"], anchor="ra")
 
     bottom = top + len(market_rows) * row_h
     draw.line((table_left, bottom, table_right, bottom), fill=COLORS["line"], width=1)
@@ -399,8 +418,8 @@ def _draw_rows(
 def _footer(draw: ImageDraw.ImageDraw, fonts: dict[str, ImageFont.ImageFont], top: int, width: int, count: int) -> None:
     left = BOARD_LEFT + 16
     right = BOARD_LEFT + width - 16
-    _draw_text(draw, (left, top + 12), f"{count} PERPETUAL MARKETS", fonts["mono_10"], COLORS["muted"])
-    _draw_text(draw, (right, top + 12), "Source: Coinalyze receiver SQLite", fonts["mono_10"], COLORS["muted"], anchor="ra")
+    _draw_text(draw, (left, top + 12), f"{count} PERPETUAL MARKETS", fonts["mono_11"], COLORS["muted"])
+    _draw_text(draw, (right, top + 12), "Source: Coinalyze receiver SQLite", fonts["mono_11"], COLORS["muted"], anchor="ra")
 
 
 def render_market_board(snapshot: dict, output_path: Path) -> Path:
@@ -417,7 +436,8 @@ def render_market_board(snapshot: dict, output_path: Path) -> Path:
     content_top = _draw_header(draw, fonts, snapshot, board_right)
     summary_top = _draw_summary_strip(draw, fonts, snapshot, content_top, BOARD_WIDTH - 2)
 
-    col_w = [235, 185, 105, 110, 125, 110, 105, 145, 155, 120]
+    # Fill the board width while reserving space for value-plus-change cells.
+    col_w = [270, 210, 125, 135, 135, 190, 185, 190, 196]
     col_x = [BOARD_LEFT]
     for width in col_w[:-1]:
         col_x.append(col_x[-1] + width + 1)

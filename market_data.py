@@ -206,21 +206,26 @@ def build_snapshot(db_path: Path | None = None):
                 volume_24h = window_volume(
                     connection, symbol, board_timestamp - 86399, board_timestamp
                 )
+                previous_volume_24h = window_volume(
+                    connection,
+                    symbol,
+                    board_timestamp - 86399 - 300,
+                    board_timestamp - 300,
+                )
                 long_liq, short_liq = liquidation_totals(
                     connection, symbol, board_timestamp - 299, board_timestamp
                 )
 
                 oi = normalize_usd(oi_row["close"], price, unit) if oi_row else None
+                previous_oi = (
+                    normalize_usd(previous_oi_row["close"], previous_price, unit)
+                    if previous_oi_row and previous_price is not None
+                    else None
+                )
                 cvd_5m_usd = normalize_usd(current_cvd, price, unit)
                 cvd_ratio = (
                     current_cvd / current_volume * 100
                     if current_volume not in (None, 0)
-                    else None
-                )
-                price_change_5m = change_percent(price, previous_price)
-                previous_oi = (
-                    normalize_usd(previous_oi_row["close"], previous_price, unit)
-                    if previous_oi_row and previous_price is not None
                     else None
                 )
                 active_oi = active_oi_3days(
@@ -230,12 +235,26 @@ def build_snapshot(db_path: Path | None = None):
                     unit,
                     price,
                 )
+                previous_active_oi = active_oi_3days(
+                    connection,
+                    symbol,
+                    board_timestamp - 300,
+                    unit,
+                    previous_price if previous_price is not None else price,
+                )
+                price_change_5m = change_percent(price, previous_price)
                 if oi is not None and previous_oi is not None:
                     open_interest_changes.append(change_percent(oi, previous_oi))
                 net_cvd_total += cvd_5m_usd or 0
                 liquidations_total += (
                     normalize_usd(long_liq, price, unit) or 0
                 ) + (normalize_usd(short_liq, price, unit) or 0)
+                volume_24h_usd = normalize_usd(volume_24h, price, unit)
+                previous_volume_24h_usd = normalize_usd(
+                    previous_volume_24h,
+                    previous_price if previous_price is not None else price,
+                    unit,
+                )
 
                 rows.append(
                     {
@@ -246,7 +265,7 @@ def build_snapshot(db_path: Path | None = None):
                         "price": price,
                         "priceChange5m": price_change_5m,
                         "basis": basis,
-                        "basisChangeBp": (
+                        "basisChange5mBp": (
                             (basis - previous_basis) * 100
                             if previous_basis is not None
                             else None
@@ -258,8 +277,17 @@ def build_snapshot(db_path: Path | None = None):
                             previous_funding_row["close"] if previous_funding_row else None,
                         ),
                         "openInterestUsd": oi,
+                        "openInterestChange5m": change_percent(oi, previous_oi),
                         "activeOpenInterest3DaysUsd": active_oi,
-                        "volume24hUsd": normalize_usd(volume_24h, price, unit),
+                        "activeOpenInterest3DaysChange5m": change_percent(
+                            active_oi,
+                            previous_active_oi,
+                        ),
+                        "volume24hUsd": volume_24h_usd,
+                        "volume24hChange5m": change_percent(
+                            volume_24h_usd,
+                            previous_volume_24h_usd,
+                        ),
                     }
                 )
 
